@@ -35,7 +35,7 @@ I'll be upfront: Claude Code wrote nearly all of the code, tests and docs. I ask
 What I did myself:
 - Picked the tools and services: Claude Code instead of Cursor (the assignment allows other tools), OpenRouter for the model, Supabase for the database, Render for hosting. I made the accounts and keys, created the GitHub repo and set up the Render service.
 - Ran the deployment and fixed the problems it hit. My first Render deploy failed because I had pasted my Supabase dashboard link into `DATABASE_URL` instead of the real connection string. The error message showed it. After fixing that, a stray line break in the value broke it again, so we made the app trim whitespace from all settings.
-- Decided what to submit. I considered withdrawing because the task felt like a lot, and chose to finish it and be honest about the results.
+- Decided to report the results as they came out, including the ones that didn't help, instead of picking numbers that look better.
 
 What I learned from testing (details in `docs/BEFORE_AFTER.md`):
 - The automatic prompt learning did not help. On chats it had never seen it scored slightly *worse* than the starting prompt. One hand-written rule (a 40-word limit) did help: replies went from about 1.7x to 1.2x the length of the human replies, with no clear drop in the score. That rule is in the final prompt.
