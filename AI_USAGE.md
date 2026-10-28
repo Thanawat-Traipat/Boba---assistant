@@ -29,8 +29,22 @@ Full numbers and outputs: `docs/BEFORE_AFTER.md`, `docs/EVAL_ROUND1.md`, `EVAL_R
 - Live runs of all three endpoints against the real LLM and a real Postgres (Supabase), plus the assignment's "send lots of emojis" manual-update test and a rollback.
 - Held-out evaluation by whole conversation (never single turns).
 
-## Honest limits of this log
-Everything above was produced by the AI under my prompts. The section below is the part only I can write, and it must describe things I actually did.
+## My contribution
+I'll be upfront: Claude Code wrote nearly all of the code, tests and docs. I asked it to draft this section from our session history, and I read it and kept only what is true.
 
-## TODO - my personal contribution (write in your own words, truthfully)
-Examples of what belongs here: which decisions you reviewed and kept/changed/rejected and why; what you ran yourself and what you saw; the problems you noticed (e.g. the replies being too long, the data inconsistency in Laos pricing, no ghosting in the data); what you would try next; how you deployed it. Do not claim work you did not do.
+What I did myself:
+- Picked the tools and services: Claude Code instead of Cursor (the assignment allows other tools), OpenRouter for the model, Supabase for the database, Render for hosting. I made the accounts and keys, created the GitHub repo and set up the Render service.
+- Ran the deployment and fixed the problems it hit. My first Render deploy failed because I had pasted my Supabase dashboard link into `DATABASE_URL` instead of the real connection string. The error message showed it. After fixing that, a stray line break in the value broke it again, so we made the app trim whitespace from all settings.
+- Decided what to submit. I considered withdrawing because the task felt like a lot, and chose to finish it and be honest about the results.
+
+What I learned from testing (details in `docs/BEFORE_AFTER.md`):
+- The automatic prompt learning did not help. On chats it had never seen it scored slightly *worse* than the starting prompt. One hand-written rule (a 40-word limit) did help: replies went from about 1.7x to 1.2x the length of the human replies, with no clear drop in the score. That rule is in the final prompt.
+- My first test looked fine but the prompt had nearly doubled in size from just three conversations, so we added a size cap and a better training order, then tested again with repeats and confidence intervals.
+- The sample data has no ghosting, and the Laos price (5,000 + 10,000 THB) is described as a total of 18,000, which doesn't add up. I didn't invent anything to cover those gaps.
+
+What is unfinished:
+- No quality check beyond a word-overlap score on 24 turns; it needs human ratings.
+- The facts the bot knows come from 15 made-up chats, and it still avoids answering things the human consultants answer directly (like translation rules).
+- The free Render server sleeps, so the first request can take about a minute.
+
+Next I would batch several examples per prompt edit, add the missing business facts as a proper knowledge section, and have a person rate replies.
