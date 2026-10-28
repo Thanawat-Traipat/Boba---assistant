@@ -137,7 +137,7 @@ python -m scripts.lab eval --versions 1 latest --report docs/EVAL_REPORT.md
 - **Verified:** all 17 tests pass offline (scripted fake LLM): workflow, guards, rollback, HTTP validation, auth, history ordering, retrieval leakage, data splitting.
 - **Verified live:** all three endpoints, prompt versioning/diff/restore, manual instruction, 50+ training edits (OpenRouter + SQLite).
 - **Not verified:** the Postgres code path (SQL is portable but only tested on SQLite) and the hosted deployment.
-- **Learning gain not demonstrated:** two training rounds on held-out chats gave F1 0.253→0.259 and 0.251→0.232 (noise-level); round 1 overfit and doubled the prompt, which led to the size cap. Details in `docs/BEFORE_AFTER.md`.
+- **Learning gain not demonstrated:** two training rounds gave F1 0.253→0.259 and 0.251→0.232 on one-sample runs; the stronger 3-repeat eval (`docs/EVAL_ROUND3.md`) shows the auto-learned prompt is slightly *worse* than the seed (Δ F1 −0.024, 95% CI [−0.047, −0.005]). A single hand-written length rule did help (reply length 1.67×→1.24× human, F1 not detectably changed) and is now part of the seed prompt. Details in `docs/BEFORE_AFTER.md`.
 - **Persistence:** with no `DATABASE_URL` the app falls back to SQLite, and on Render's free tier that file is wiped on redeploy and when the instance spins down, so the prompt would reset to the seed. Set `DATABASE_URL` (Supabase/Neon Postgres) for the prompt history to survive. _(Delete this line once the hosted deployment uses Postgres.)_
 - PII redaction is regex-based: names and street addresses pass through.
 - Token-F1 is a crude proxy; it rewards phrasing overlap, not correctness. Use `diagnosis`/diffs and human review for real decisions.

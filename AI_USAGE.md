@@ -19,6 +19,7 @@
 | Auto-learning loop, first round (20 edits, 3 conversations) | prompt grew 94% and memorised scenarios; held-out F1 0.253→0.259 (noise) | interleaved training order, 5,200-char size cap, "no scenario scripts" editor rule |
 | Second round after fixes | held-out F1 0.251→0.232; length still ~1.5x human | stated as *no demonstrated gain*; built a repeat/CI eval to test hypotheses properly |
 | Token-F1 as the quality metric | too noisy for one reference reply | added length ratio, AI-isms, repeats, paired bootstrap CI |
+| 3-repeat eval with CIs (round 3) | auto-learned prompt significantly worse (ΔF1 −0.024); a hand-written 40-word rule cut length 1.67x→1.24x with no detectable F1 loss | adopted the rule into the seed prompt + live DB (v5); kept the auto loop but documented that it didn't help |
 | Stored/forwarded raw chats to the editor | PII risk (emails, phones, IDs) | added redaction + tests |
 
 Full numbers and outputs: `docs/BEFORE_AFTER.md`, `docs/EVAL_ROUND1.md`, `EVAL_ROUND2.md`, `EVAL_ROUND3.md`.

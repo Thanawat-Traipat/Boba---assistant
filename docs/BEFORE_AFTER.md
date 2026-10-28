@@ -40,7 +40,21 @@ Setup: fresh DB, 30 interleaved examples → v2..v23 (7 further edits were rejec
 - Worst case, client: "I'm German. My business is registered in Germany. I have clients from various countries." (F1 -0.13 vs v1): v23 asks a location question where v1 answered; the real reply states a requirement then asks where to submit.
 - **Verdict: no measurable improvement on this metric.** Honest reading: with 24 held-out turns, one reference reply per turn and an overlap metric, I cannot distinguish a −0.02 change from noise, and the learning loop did not clearly move reply length (still ~1.5× too long) or accuracy.
 
+## Example 4 - stronger evaluation (3 repeats per turn, paired bootstrap 95% CI) and one hand-written fix
+
+Arms: v1 seed, v23 (the round-2 auto-learned prompt), and v1 + one candidate rule I wrote after seeing that replies were ~50% too long: *"Hard limit: 40 words. If a full answer needs more, give only the single most important point and leave the rest for the next message."* Full report: `EVAL_ROUND3.md`.
+
+| prompt | token-F1 | Δ F1 vs v1 (95% CI) | length ratio | AI-isms |
+|---|---|---|---|---|
+| v1 (seed) | 0.269 | - | 1.67 | 0.04 |
+| v23 (auto-learned) | 0.245 | -0.024 [-0.047, -0.005] ▼ | 1.58 | 0.01 |
+| v1 + length rule | 0.259 | -0.010 [-0.029, +0.011] (not distinguishable from noise) | **1.24** | 0.00 |
+
+- **The auto-learning loop made the prompt measurably worse on F1** (the CI excludes 0). Rounds 1-2 suggested "no gain"; with repeats it is a small but real loss. Likely cause: single-example edits add cautious/over-specific rules.
+- **The hand-written rule fixed the observed weakness** (length 1.67x -> 1.24x the human length) with no detectable F1 loss. I adopted exactly this line into the seed prompt (`assistant/prompts.py`) and appended it to the live DB as version 5 (`source=manual`).
+- Caveat: F1 is a crude overlap metric and N = 24 turns, so "not worse" is weaker evidence than "better". Both bots also over-deflect where the human states facts (e.g. "official translations are required"), because that fact is not in the prompt.
+
 ## What I conclude / what I'd do next
-- The mechanics (store, edit, diff, guard, rollback, manual instructions) are verified live. The *quality gain from auto-learning on 15 synthetic chats is not demonstrated*.
+- The mechanics (store, edit, diff, guard, rollback, manual instructions) are verified live. The *quality gain from auto-learning on 15 synthetic chats is not demonstrated*, and with repeats the auto-learned prompt was slightly worse than the seed (Example 4).
 - Likely limits: facts the human replies state but the prompt lacks (translations, freelancer documents, processing times) can't be inferred from one example; one-example edits are noisy.
 - Next: batch several examples per edit instead of one; a length-targeted rule (a deterministic word limit, since the bot is consistently ~50% too long); an LLM judge or human review instead of token-F1; load the missing business facts into a structured knowledge section; more data.
