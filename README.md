@@ -26,7 +26,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # add ONE LLM key (Gemini/Groq/Anthropic/OpenRouter); leave DATABASE_URL empty for SQLite
 python app.py                 # http://localhost:5000
-pytest                        # 17 offline tests, no API key needed
+pytest                        # 19 offline tests, no API key needed
 ```
 
 ### Deploy (Render + Neon/Supabase)
@@ -83,7 +83,7 @@ curl -s "$BASE/prompt/diff?from=1&to=2"
  /improve-ai-manually: MANUAL EDITOR meta-prompt(prompt, instructions) ─► guard ─► version N+1
 ```
 
-Layout: `app.py` (routes) · `assistant/service.py` (workflow) · `prompts.py` (seed prompt, both editor prompts, guards) · `store.py` (versioned prompt table, Postgres/SQLite) · `llm.py` (Gemini/Groq/Anthropic over HTTP + mock) · `retrieval.py` · `dataset.py` · `metrics.py` · `scripts/lab.py` (batch train + held-out eval) · `tests/`.
+Layout: `app.py` (routes) · `assistant/service.py` (workflow) · `prompts.py` (seed prompt, both editor prompts, guards) · `store.py` (versioned prompt table, Postgres/SQLite) · `llm.py` (Gemini/Groq/Anthropic over HTTP + mock) · `retrieval.py` · `dataset.py` · `metrics.py` · `privacy.py` · `scripts/lab.py` (batch train + held-out eval) · `tests/`.
 
 ### Decisions that go beyond the provided prompts
 
@@ -103,6 +103,24 @@ Layout: `app.py` (routes) · `assistant/service.py` (workflow) · `prompts.py` (
 - **Ghosting / drop-off cannot be learned from this data**: all 15 conversations end with a consultant message and none shows a client going silent. I did not invent drop-off behaviour.
 - **Data inconsistency:** Laos is described as "5,000 service + 10,000 government = total 18,000 THB" (that sums to 15,000). The seed prompt states the two components and never a total.
 
+## Evaluation method (and why I don't trust a single number)
+- **Held-out by conversation:** every 4th conversation (24 client turns) is never used for training or few-shot retrieval.
+- **One reference reply per turn is a weak target:** many different replies are fine. Token-F1 only measures overlap with the one human reply, so I also track length ratio and "AI-isms" (boilerplate/markdown/emoji).
+- **Noise control:** replies are sampled, so `python -m scripts.lab eval --repeats 3` generates each turn several times, averages per turn, and reports the difference to the baseline with a **paired bootstrap 95% CI**. A change counts as demonstrated only if the CI excludes 0 (marked ▲/▼ in the report).
+- **Hypothesis testing:** `--rule "..."` evaluates "baseline + one candidate prompt line" as its own arm, so a hunch (e.g. "replies are ~50% too long") can be tested before it goes anywhere near the live prompt. Results: `docs/EVAL_ROUND3.md`.
+- Still missing: human ratings or an LLM judge for correctness/naturalness, and far more than 24 turns.
+
+## Privacy and responsible use
+- **Redaction before persistence:** emails, URLs, phone/long-number runs and passport-style IDs are replaced with placeholders (`assistant/privacy.py`) before a chat is shown to the *editor* LLM or written to the prompt-history notes. Tests prove the editor input and DB never contain the raw values. Names and addresses are **not** detected; the live `/generate-reply` call necessarily sends the raw message to the LLM provider you configure.
+- **Prompts hold rules, not people:** the editor is told to generalise and never copy customer details or the real reply into the prompt.
+- **Persuasion:** the bot is designed to move interested clients to the next step. That is a behavioural nudge, so the prompt forbids invented facts, promised approval and false urgency, and requires stating the money-back guarantee's limits. Review `GET /prompt/diff` after each learning run to check edits haven't made the bot pushier.
+- **Human in the loop:** nothing is sent to customers by this service; it only returns text. A person should review replies before sending, especially on fees, legal rules and refunds.
+- **Authorization:** set `ADMIN_TOKEN` in production; the improve endpoints change the behaviour of every future reply.
+
+## Credits
+- Task, sample conversations and the prompt-engineering workflow (seed idea, editor-prompt idea, endpoint spec) come from BOBALAB's take-home assessment (github.com/MoriJinzz/Bobalab-Assesment). The 15 chats are synthetic.
+- Built with Claude Code (Claude Sonnet 5.5); the LLM used for the results above is `anthropic/claude-haiku-5.5` via OpenRouter. Libraries: Flask, gunicorn, requests, psycopg, python-dotenv, pytest. Full AI-use details in `AI_USAGE.md`.
+
 ## Before / after
 See [`docs/BEFORE_AFTER.md`](docs/BEFORE_AFTER.md). Reproduce with:
 ```bash
@@ -116,7 +134,7 @@ python -m scripts.lab eval --versions 1 latest --report docs/EVAL_REPORT.md
 - **Not verified:** the Postgres code path (SQL is portable but only tested on SQLite) and the hosted deployment.
 - **Learning gain not demonstrated:** two training rounds on held-out chats gave F1 0.253→0.259 and 0.251→0.232 (noise-level); round 1 overfit and doubled the prompt, which led to the size cap. Details in `docs/BEFORE_AFTER.md`.
 - **Persistence:** with no `DATABASE_URL` the app falls back to SQLite, and on Render's free tier that file is wiped on redeploy and when the instance spins down, so the prompt would reset to the seed. Set `DATABASE_URL` (Supabase/Neon Postgres) for the prompt history to survive. _(Delete this line once the hosted deployment uses Postgres.)_
-- `scripts/lab.py eval` has no per-call retry; a transient LLM error aborts it.
+- PII redaction is regex-based: names and street addresses pass through.
 - Token-F1 is a crude proxy; it rewards phrasing overlap, not correctness. Use `diagnosis`/diffs and human review for real decisions.
 - Single gunicorn worker (edit lock is in-process); scale-out needs a DB-level lock or optimistic versioning.
 - Self-editing can still drift or overfit to a few examples; guards reduce but don't remove that. Review `GET /prompt/diff`, and set `ADMIN_TOKEN` on any public deployment because `/improve-ai*` write to the live prompt.

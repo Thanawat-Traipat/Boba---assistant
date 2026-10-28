@@ -188,3 +188,31 @@ def test_http_improve_and_diff(client):
     d = client.get("/prompt/diff?from=1&to=2").json
     assert "+" + EDIT_MARK in d["diff"]
     assert len(client.get("/prompt/history").json["versions"]) == 2
+
+
+# ---- privacy ----------------------------------------------------------------------------
+def test_redact_removes_common_pii():
+    from assistant.privacy import redact
+    t = redact("Email me at jane.doe@mail.com or +66 81 234 5678, passport AB1234567, see https://x.co/a?id=1")
+    assert "jane.doe" not in t and "81 234" not in t and "AB1234567" not in t and "x.co" not in t
+    assert "[EMAIL]" in t and "[NUMBER]" in t and "[ID]" in t and "[URL]" in t
+    assert redact("500,000 THB for 3 months") == "500,000 THB for 3 months"  # business numbers survive
+
+
+def test_improve_never_sends_or_stores_client_pii(tmp_path):
+    seen = []
+
+    def h(system, user):
+        if system.startswith("You are a prompt editor"):
+            seen.append(user)
+            cur = user.split("CURRENT PROMPT:\n<<<\n", 1)[1].split("\n>>>", 1)[0]
+            return json.dumps({"prompt": cur + "\n" + EDIT_MARK})
+        return json.dumps({"reply": "Sure, I'll write to jane.doe@mail.com"})
+
+    cfg, llm, a = make(tmp_path, h)
+    a.improve("my email is jane.doe@mail.com, phone 0812345678", [{"role": "client", "message": "passport AB1234567"}],
+              "Thanks! We'll email jane.doe@mail.com", order="oldest_first")
+    editor_input = seen[0].split("CHAT HISTORY", 1)[1]  # everything after the (PII-free) prompt
+    for secret in ("jane.doe", "0812345678", "AB1234567"):
+        assert secret not in editor_input
+    assert "jane.doe" not in a.store.history()[0]["note"] and "0812345678" not in a.store.history()[0]["note"]

@@ -1,6 +1,6 @@
 import threading
 
-from . import metrics, prompts
+from . import metrics, privacy, prompts
 from .dataset import load_examples
 from .llm import LLMError, extract_json
 from .retrieval import Retriever
@@ -90,7 +90,9 @@ class Assistant:
             predicted = self._generate(cur["content"], history, client_seq, exclude_reply=consultant_reply)
             new_prompt, meta = self._edit(
                 prompts.EDITOR_PROMPT,
-                prompts.build_editor_input(cur["content"], history, client_seq, consultant_reply, predicted,
+                prompts.build_editor_input(cur["content"], privacy.redact_history(history),
+                                           [privacy.redact(m) for m in client_seq],
+                                           privacy.redact(consultant_reply), privacy.redact(predicted),
                                            self.cfg.MAX_PROMPT_CHARS))
             result = {"predictedReply": predicted, "diagnosis": meta.get("diagnosis"),
                       "changes": meta.get("changes") or []}
@@ -111,7 +113,7 @@ class Assistant:
                               changed=False, rejectedReason=reason)
                 return result
 
-            note = "auto: " + " | ".join(client_seq)[:200]
+            note = "auto: " + privacy.redact(" | ".join(client_seq))[:200]
             version = self.store.save(new_prompt, "auto", note)
             result.update(updatedPrompt=new_prompt, promptVersion=version, changed=True)
             return result
