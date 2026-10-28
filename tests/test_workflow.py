@@ -216,3 +216,17 @@ def test_improve_never_sends_or_stores_client_pii(tmp_path):
     for secret in ("jane.doe", "0812345678", "AB1234567"):
         assert secret not in editor_input
     assert "jane.doe" not in a.store.history()[0]["note"] and "0812345678" not in a.store.history()[0]["note"]
+
+
+def test_config_strips_whitespace_from_env(monkeypatch):
+    import importlib
+    from assistant import config
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@h:5432/postgres\n")
+    monkeypatch.setenv("ADMIN_TOKEN", " tok \n")
+    importlib.reload(config)
+    try:
+        assert config.Config.DATABASE_URL == "postgresql://u:p@h:5432/postgres"
+        assert config.Config.ADMIN_TOKEN == "tok"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
