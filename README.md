@@ -1,10 +1,12 @@
 # BOBALAB Self-Improving Support Assistant
 
+**Live:** https://boba-assistant.onrender.com (Render free tier: the first request after idle can take ~1 minute to wake up) · **Repo:** https://github.com/Thanawat-Traipat/Boba---assistant
+
 A Flask microservice that answers visa (DTV) customer DMs in a human, casual voice, keeps its
 system prompt in a database, and **improves that prompt** from real consultant replies or reviewer
 instructions. "Self-learning" here means prompt editing, not model training.
 
-> **Status:** all three endpoints verified live against an LLM (OpenRouter) and SQLite; 17 offline tests pass. **Not yet verified:** Postgres and the hosted deployment. The auto-learning loop works mechanically but did **not** show a measurable quality gain in my held-out tests - see [`docs/BEFORE_AFTER.md`](docs/BEFORE_AFTER.md) and [Known limitations](#known-limitations-and-honest-status).
+> **Status:** all three endpoints verified on the hosted deployment (Render + Supabase Postgres + OpenRouter); 20 offline tests pass. The auto-learning loop works mechanically but did **not** show a measurable quality gain in my held-out tests - see [`docs/BEFORE_AFTER.md`](docs/BEFORE_AFTER.md) and [Known limitations](#known-limitations-and-honest-status).
 
 ## Endpoints (match the assignment spec)
 
@@ -26,7 +28,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # add ONE LLM key (Gemini/Groq/Anthropic/OpenRouter); leave DATABASE_URL empty for SQLite
 python app.py                 # http://localhost:5000
-pytest                        # 19 offline tests, no API key needed
+pytest                        # 20 offline tests, no API key needed
 ```
 
 ### Deploy on Vercel (alternative to Render)
@@ -45,7 +47,7 @@ Configuration is all environment variables, documented in `.env.example`.
 ## cURL examples
 
 ```bash
-BASE=https://YOUR-APP.onrender.com      # or http://localhost:5000
+BASE=https://boba-assistant.onrender.com      # or http://localhost:5000
 # If ADMIN_TOKEN is set, add:  -H "X-Admin-Token: $ADMIN_TOKEN"  to the two improve calls.
 
 # 1) generate-reply   (chatHistory is NEWEST-first, exactly as in the assignment example)
@@ -136,9 +138,9 @@ python -m scripts.lab eval --versions 1 latest --report docs/EVAL_REPORT.md
 ## Known limitations and honest status
 - **Verified:** all 17 tests pass offline (scripted fake LLM): workflow, guards, rollback, HTTP validation, auth, history ordering, retrieval leakage, data splitting.
 - **Verified live:** all three endpoints, prompt versioning/diff/restore, manual instruction, 50+ training edits (OpenRouter + SQLite).
-- **Not verified:** the Postgres code path (SQL is portable but only tested on SQLite) and the hosted deployment.
+- **Verified on the hosted deployment:** generate, improve-ai (≈14 s), improve-ai-manually, history, restore, and the admin-token 401 on both improve endpoints.
 - **Learning gain not demonstrated:** two training rounds gave F1 0.253→0.259 and 0.251→0.232 on one-sample runs; the stronger 3-repeat eval (`docs/EVAL_ROUND3.md`) shows the auto-learned prompt is slightly *worse* than the seed (Δ F1 −0.024, 95% CI [−0.047, −0.005]). A single hand-written length rule did help (reply length 1.67×→1.24× human, F1 not detectably changed) and is now part of the seed prompt. Details in `docs/BEFORE_AFTER.md`.
-- **Persistence:** with no `DATABASE_URL` the app falls back to SQLite, and on Render's free tier that file is wiped on redeploy and when the instance spins down, so the prompt would reset to the seed. Set `DATABASE_URL` (Supabase/Neon Postgres) for the prompt history to survive. _(Delete this line once the hosted deployment uses Postgres.)_
+- **Persistence:** the hosted app stores prompts in Supabase Postgres, so versions survive restarts. Without `DATABASE_URL` the app falls back to SQLite, which Render's free tier wipes on redeploy.
 - PII redaction is regex-based: names and street addresses pass through.
 - Token-F1 is a crude proxy; it rewards phrasing overlap, not correctness. Use `diagnosis`/diffs and human review for real decisions.
 - Single gunicorn worker (edit lock is in-process); scale-out needs a DB-level lock or optimistic versioning.
