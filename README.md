@@ -29,6 +29,11 @@ python app.py                 # http://localhost:5000
 pytest                        # 19 offline tests, no API key needed
 ```
 
+### Deploy on Vercel (alternative to Render)
+1. Import the GitHub repo at vercel.com/new (framework: Flask is auto-detected from `app.py`; `vercel.json` sets a 60 s function limit because `/improve-ai` makes two LLM calls).
+2. Add environment variables: `LLM_PROVIDER`, `LLM_MODEL`, the LLM key, `DATABASE_URL` (**Postgres is required**: Vercel's disk is read-only/ephemeral, so SQLite won't work), and `ADMIN_TOKEN`.
+3. Deploy, then open `/health`. Caveat: the edit lock is per instance, so two *simultaneous* improve calls on different serverless instances could race (the version primary key makes the loser fail with an error, not corrupt data).
+
 ### Deploy (Render + Neon/Supabase)
 1. Create a free Postgres (Neon or Supabase) and copy its connection string.
 2. Push the repo to GitHub; on Render create a *Blueprint* from `render.yaml` (Docker).

@@ -1,0 +1,6 @@
+.venv
+tests
+docs
+scripts
+data/*.db
+.env
