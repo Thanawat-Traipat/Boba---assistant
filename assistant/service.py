@@ -90,7 +90,8 @@ class Assistant:
             predicted = self._generate(cur["content"], history, client_seq, exclude_reply=consultant_reply)
             new_prompt, meta = self._edit(
                 prompts.EDITOR_PROMPT,
-                prompts.build_editor_input(cur["content"], history, client_seq, consultant_reply, predicted))
+                prompts.build_editor_input(cur["content"], history, client_seq, consultant_reply, predicted,
+                                           self.cfg.MAX_PROMPT_CHARS))
             result = {"predictedReply": predicted, "diagnosis": meta.get("diagnosis"),
                       "changes": meta.get("changes") or []}
 

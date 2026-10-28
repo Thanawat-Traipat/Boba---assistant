@@ -15,6 +15,7 @@ class Config:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
     DATABASE_URL = os.getenv("DATABASE_URL", "")
     SQLITE_PATH = os.getenv("SQLITE_PATH", "data/prompts.db")
@@ -25,5 +26,5 @@ class Config:
     ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 
     DATA_PATH = os.getenv("DATA_PATH", "data/conversations.json")
-    MAX_PROMPT_CHARS = 12000
+    MAX_PROMPT_CHARS = 5200  # ~1.5x the seed: cumulative-growth cap (round 1 doubled it)
     MIN_PROMPT_CHARS = 400

@@ -9,6 +9,7 @@ reported numbers come from chats the prompt-editor never saw. The few-shot retri
 also built from train conversations only, otherwise eval would leak the answers.
 """
 import argparse
+from itertools import zip_longest
 import statistics
 import time
 
@@ -26,7 +27,12 @@ def build(cfg):
 
 
 def cmd_train(a, train, args):
-    ex = train[: args.limit] if args.limit else train
+    # Round-robin across conversations: round 1 trained on 3 chats in a row and overfit to them.
+    by_conv = {}
+    for e in train:
+        by_conv.setdefault(e["contactId"], []).append(e)
+    ex = [e for tup in zip_longest(*by_conv.values()) for e in tup if e]
+    ex = ex[: args.limit] if args.limit else ex
     for epoch in range(args.epochs):
         for i, e in enumerate(ex, 1):
             try:

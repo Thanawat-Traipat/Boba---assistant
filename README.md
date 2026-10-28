@@ -4,7 +4,7 @@ A Flask microservice that answers visa (DTV) customer DMs in a human, casual voi
 system prompt in a database, and **improves that prompt** from real consultant replies or reviewer
 instructions. "Self-learning" here means prompt editing, not model training.
 
-> **Status:** code, tests and docs are complete and pass offline. See [Known limitations](#known-limitations-and-honest-status) for what has / has not been verified against a live LLM and a hosted DB.
+> **Status:** all three endpoints verified live against an LLM (OpenRouter) and SQLite; 17 offline tests pass. **Not yet verified:** Postgres and the hosted deployment. The auto-learning loop works mechanically but did **not** show a measurable quality gain in my held-out tests - see [`docs/BEFORE_AFTER.md`](docs/BEFORE_AFTER.md) and [Known limitations](#known-limitations-and-honest-status).
 
 ## Endpoints (match the assignment spec)
 
@@ -24,7 +24,7 @@ Extra response fields on the improve endpoints (`promptVersion`, `changed`, `dia
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # add ONE LLM key (Gemini/Groq/Anthropic); leave DATABASE_URL empty for SQLite
+cp .env.example .env          # add ONE LLM key (Gemini/Groq/Anthropic/OpenRouter); leave DATABASE_URL empty for SQLite
 python app.py                 # http://localhost:5000
 pytest                        # 17 offline tests, no API key needed
 ```
@@ -106,13 +106,16 @@ Layout: `app.py` (routes) · `assistant/service.py` (workflow) · `prompts.py` (
 ## Before / after
 See [`docs/BEFORE_AFTER.md`](docs/BEFORE_AFTER.md). Reproduce with:
 ```bash
-python -m scripts.lab train --limit 30 --sleep 4
+python -m scripts.lab train --limit 30 --sleep 1
 python -m scripts.lab eval --versions 1 latest --report docs/EVAL_REPORT.md
 ```
 
 ## Known limitations and honest status
 - **Verified:** all 17 tests pass offline (scripted fake LLM): workflow, guards, rollback, HTTP validation, auth, history ordering, retrieval leakage, data splitting.
-- **Not verified here:** live LLM quality, the Postgres code path (SQL is portable and tested only on SQLite), and the hosted deployment. Those need keys/accounts the repo intentionally doesn't contain.
+- **Verified live:** all three endpoints, prompt versioning/diff/restore, manual instruction, 50+ training edits (OpenRouter + SQLite).
+- **Not verified:** the Postgres code path (SQL is portable but only tested on SQLite) and the hosted deployment.
+- **Learning gain not demonstrated:** two training rounds on held-out chats gave F1 0.253→0.259 and 0.251→0.232 (noise-level); round 1 overfit and doubled the prompt, which led to the size cap. Details in `docs/BEFORE_AFTER.md`.
+- `scripts/lab.py eval` has no per-call retry; a transient LLM error aborts it.
 - Token-F1 is a crude proxy; it rewards phrasing overlap, not correctness. Use `diagnosis`/diffs and human review for real decisions.
 - Single gunicorn worker (edit lock is in-process); scale-out needs a DB-level lock or optimistic versioning.
 - Self-editing can still drift or overfit to a few examples; guards reduce but don't remove that. Review `GET /prompt/diff`, and set `ADMIN_TOKEN` on any public deployment because `/improve-ai*` write to the live prompt.

@@ -61,6 +61,8 @@ How to edit:
 - Generalise. State the underlying rule, never this customer's specifics (no names, emails, nationalities or countries unless the fact itself is a business policy). Never paste the real reply into the prompt.
 - Only add a business fact if the real reply states it as a company fact AND it does not contradict the prompt. If it contradicts, replace the old line instead of adding a second version. If you cannot tell whether it is a general fact, put it as "check with legal team" guidance, not as fact.
 - Prefer editing an existing line over adding a new one. Keep the prompt concise; if you add a line, remove or merge a redundant one.
+- Every rule must apply to many future clients. Never write a scripted answer for one scenario (e.g. a step-by-step reply to "rejected application"); one example is not enough evidence for a multi-sentence rule. Keep each new rule to one short line.
+- You are given a SIZE BUDGET. If your edit would push the prompt past it, you must delete or merge existing lines to make room (drop the most scenario-specific or redundant ones first).
 - If the predicted reply is already equivalent to the real reply in style, content and judgment, return CURRENT PROMPT unchanged.
 - Never remove rules that stop the bot from inventing facts, promising approval, or claiming to be an AI.
 
@@ -106,8 +108,9 @@ def build_generation_input(history, client_seq, fewshot=()):
     return "\n\n".join(parts)
 
 
-def build_editor_input(prompt, history, client_seq, consultant_reply, predicted):
-    return (f"CURRENT PROMPT:\n<<<\n{prompt}\n>>>\n\n"
+def build_editor_input(prompt, history, client_seq, consultant_reply, predicted, budget=None):
+    size = f"SIZE BUDGET: prompt is {len(prompt)} chars; it must stay under {budget} chars.\n\n" if budget else ""
+    return (size + f"CURRENT PROMPT:\n<<<\n{prompt}\n>>>\n\n"
             f"CHAT HISTORY (oldest first):\n{_fmt_history(history)}\n\n"
             f"CLIENT SEQUENCE:\n{_fmt_client(client_seq)}\n\n"
             f"REAL CONSULTANT REPLY:\n{consultant_reply}\n\n"

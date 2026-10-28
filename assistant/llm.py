@@ -13,6 +13,7 @@ DEFAULT_MODELS = {
     "gemini": "gemini-2.0-flash",
     "groq": "llama-3.3-70b-versatile",
     "anthropic": "claude-haiku-5-5",
+    "openrouter": "anthropic/claude-haiku-5.5",
 }
 
 
@@ -89,6 +90,24 @@ class GroqLLM:
             raise LLMError(f"unexpected Groq response: {str(data)[:300]}")
 
 
+class OpenRouterLLM:
+    """OpenAI-compatible gateway. No response_format: many routed models reject it, extract_json copes."""
+
+    def __init__(self, key, model):
+        self.key, self.model = key, model
+
+    def generate(self, system, user, temperature=0.7):
+        data = _post("https://openrouter.ai/api/v1/chat/completions",
+                     {"Authorization": f"Bearer {self.key}"}, {
+                         "model": self.model, "temperature": temperature,
+                         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                     }, timeout=120)
+        try:
+            return data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            raise LLMError(f"unexpected OpenRouter response: {str(data)[:300]}")
+
+
 class AnthropicLLM:
     def __init__(self, key, model):
         self.key, self.model = key, model
@@ -122,11 +141,13 @@ class MockLLM:
 def get_llm(cfg):
     p = cfg.LLM_PROVIDER
     model = cfg.LLM_MODEL or DEFAULT_MODELS.get(p, "")
-    keys = {"gemini": cfg.GEMINI_API_KEY, "groq": cfg.GROQ_API_KEY, "anthropic": cfg.ANTHROPIC_API_KEY}
+    keys = {"gemini": cfg.GEMINI_API_KEY, "groq": cfg.GROQ_API_KEY, "anthropic": cfg.ANTHROPIC_API_KEY,
+            "openrouter": cfg.OPENROUTER_API_KEY}
     if p == "mock":
         return MockLLM()
     if p not in keys:
         raise LLMError(f"unknown LLM_PROVIDER '{p}'")
     if not keys[p]:
         raise LLMError(f"LLM_PROVIDER={p} but its API key is not set")
-    return {"gemini": GeminiLLM, "groq": GroqLLM, "anthropic": AnthropicLLM}[p](keys[p], model)
+    return {"gemini": GeminiLLM, "groq": GroqLLM, "anthropic": AnthropicLLM,
+            "openrouter": OpenRouterLLM}[p](keys[p], model)
