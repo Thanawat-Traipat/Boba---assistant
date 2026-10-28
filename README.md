@@ -115,6 +115,7 @@ python -m scripts.lab eval --versions 1 latest --report docs/EVAL_REPORT.md
 - **Verified live:** all three endpoints, prompt versioning/diff/restore, manual instruction, 50+ training edits (OpenRouter + SQLite).
 - **Not verified:** the Postgres code path (SQL is portable but only tested on SQLite) and the hosted deployment.
 - **Learning gain not demonstrated:** two training rounds on held-out chats gave F1 0.253→0.259 and 0.251→0.232 (noise-level); round 1 overfit and doubled the prompt, which led to the size cap. Details in `docs/BEFORE_AFTER.md`.
+- **Persistence:** with no `DATABASE_URL` the app falls back to SQLite, and on Render's free tier that file is wiped on redeploy and when the instance spins down, so the prompt would reset to the seed. Set `DATABASE_URL` (Supabase/Neon Postgres) for the prompt history to survive. _(Delete this line once the hosted deployment uses Postgres.)_
 - `scripts/lab.py eval` has no per-call retry; a transient LLM error aborts it.
 - Token-F1 is a crude proxy; it rewards phrasing overlap, not correctness. Use `diagnosis`/diffs and human review for real decisions.
 - Single gunicorn worker (edit lock is in-process); scale-out needs a DB-level lock or optimistic versioning.
