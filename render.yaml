@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: bobalab-support-assistant
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false        # set in the Render dashboard, never in git
+      - key: DATABASE_URL
+        sync: false        # Neon / Supabase Postgres URL
+      - key: ADMIN_TOKEN
+        sync: false
